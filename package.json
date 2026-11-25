@@ -1,0 +1,20 @@
+{
+  "name": "global-stereo-to-mono",
+  "private": true,
+  "license": "MIT",
+  "version": "0.3.0",
+  "type": "module",
+  "description": "GSM (Global Stereo to Mono), a LUNA Add On",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "serve": "ua-builder serve",
+    "install-addon": "ua-builder install",
+    "pack": "ua-builder pack"
+  },
+  "devDependencies": {
+    "@uaudio/luna-builder-sdk": "file:../luna-builder-sdk/plugins/ua-luna-builder",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  }
+}

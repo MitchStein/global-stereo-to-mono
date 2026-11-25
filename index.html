@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stereo to Mono</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #141416; --panel: #1c1c1f; --line: #2a2a2e; --text: #e8e8ea; --muted: #8b8b93; --faint: #5f5f67;
+      --accent: #F7C449; --accent-bg: rgba(247, 196, 73, .14); --warn: #e7cf7a;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 -apple-system, "SF Pro Text", Helvetica, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+    [hidden] { display: none !important; }
+    button { font: inherit; font-weight: 500; background: #2b2b30; color: var(--text); border: 1px solid #3a3a40; border-radius: 7px; padding: 7px 16px; cursor: pointer; }
+    button:hover:not(:disabled) { background: #34343a; }
+    button:disabled { opacity: .35; cursor: default; }
+    button.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
+    button.primary:hover:not(:disabled) { background: #ffd35f; }
+    button.small { padding: 3px 10px; font-size: 12px; background: transparent; border-color: transparent; color: var(--muted); }
+    button.small:hover:not(:disabled) { color: var(--text); background: #2b2b30; }
+
+    header { display: flex; align-items: baseline; gap: 12px; padding: 14px 16px 6px; background: var(--panel); }
+    /* Whatever the width of the window, the content keeps the width of the two cards */
+    header, #info, main { max-width: 442px; }
+
+    /* Two cards: converting (source, then the button that uses it) and going back */
+    #cards { display: grid; grid-template-columns: 250px 150px; gap: 10px; margin: 12px 16px 0; }
+    .card { background: var(--panel); border: 1px solid #34343a; border-radius: 11px; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 9px; }
+    .card .title { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: var(--accent); text-transform: uppercase; }
+    .card .row { display: flex; align-items: center; gap: 10px; }
+    .card .lbl { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .card .row .switch { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); }
+    .card .row .switch .seg { padding: 3px 0; text-align: center; }
+    .card .switch .seg.active { background: var(--accent); color: #111; }
+    .card button.primary, .card button.restore { width: 100%; height: 41px; padding: 0 8px; font-size: 13px; }
+    .card .note { font-size: 11px; color: var(--faint); line-height: 1.3; min-height: 30px; display: flex; align-items: center; }
+    .card.back .note { margin: 0; }
+    .card button.restore { margin-top: auto; background: #f1f1ee; color: #1a1a1d; border: 1px solid #fff; font-weight: 700; }
+    .card button.restore:hover:not(:disabled) { background: #fff; }
+    .card button.restore:disabled { opacity: .6; }
+    #sololine { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 11px; color: var(--muted); }
+    #sololine .switch { background: #1e1e21; }
+    #sololine .switch .seg { padding: 2px 10px; }
+    #sololine .switch .seg:not(.active) { background: #2a2a2e; border: 1px solid #333338; color: #777d83; box-shadow: none; }
+    #sololine .switch .seg.active { background: #f1f1ee; color: #111; border: 1px solid #fff; font-weight: 800; }
+    /* Every position is a visible button, active or not */
+    .seg:not(.active) { background: #303036; border: 1px solid #4a4a52; color: #c4c4cb; box-shadow: inset 0 1px 0 rgba(255,255,255,.07); }
+    .seg.active { border: 1px solid transparent; }
+    .seg { white-space: nowrap; }
+    .switch { gap: 2px; padding: 3px; }
+    .seg:disabled:not(.active) { opacity: .55; }
+    #status { color: var(--muted); font-size: 12px; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    #info { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 7px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); }
+    #notice { max-width: 410px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 10px 16px 0; padding: 8px 12px; border: 1px solid #6b5a1f; background: #2a2412; color: var(--warn); border-radius: 7px; }
+
+    #summary { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 600; color: var(--text); }
+
+    main { flex: 1; overflow: auto; padding: 4px 16px 14px; }
+    .grid { display: grid; grid-template-columns: minmax(70px, 1fr) auto auto; align-items: center; column-gap: 8px; }
+    .head { position: sticky; top: 0; background: var(--bg); z-index: 1; padding: 6px 0; border-bottom: 1px solid var(--line); color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    .track { padding: 7px 6px; margin: 0 -6px; border-bottom: 1px solid #202024; border-radius: 6px; }
+    .track:hover { background: #1b1b1e; }
+    .name { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 500; }
+    .name span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tag { font-size: 10px; font-weight: 500; color: var(--faint); border: 1px solid #34343a; border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+    .switch { display: inline-flex; background: #26262a; border-radius: 20px; padding: 2px; gap: 2px; }
+    .seg { font-size: 11px; font-weight: 600; letter-spacing: .05em; padding: 3px 12px; border-radius: 18px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+    .seg:hover:not(:disabled):not(.active) { background: #34343a; color: var(--text); }
+    .seg.active { background: #44444b; color: var(--text); cursor: default; }
+    .is-mono .seg.active { background: var(--accent); color: #111; }
+    /* STEREO, when it is the track's state, is lit white */
+    .track:not(.is-mono) .seg.active { background: #f1f1ee; color: #111; border: 1px solid #fff; font-weight: 800; }
+    .seg:disabled { opacity: .5; cursor: default; }
+    /* Solo: dark and quiet when off, bright with an amber halo when on */
+    .solo { padding: 0; width: 30px; height: 21px; font-size: 12px; font-weight: 800; line-height: 1; border-radius: 3px; color: #8d949a; background: linear-gradient(#41464a, #34383c); border: 1.5px solid #1d1f21; box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+    .solo:hover:not(:disabled) { background: linear-gradient(#4b5156, #3b4045); color: #b4bbc0; }
+    .solo.on, .solo.on:hover:not(:disabled) { color: #111; background: linear-gradient(#ffffff, #ffe9a3); border-color: #e0a93a; box-shadow: 0 0 8px rgba(247,196,73,.8), inset 0 -2px 3px rgba(247,196,73,.55); }
+    .solo:disabled { opacity: .35; }
+    .pill { justify-self: start; font-size: 11px; font-weight: 600; letter-spacing: .05em; padding: 2px 9px; border-radius: 20px; background: #26262a; color: var(--muted); }
+    .pill.mono { background: var(--accent); color: #111; }
+    .pill.unsupported { background: transparent; color: var(--faint); border: 1px dashed #3a3a40; font-weight: 500; }
+    .num { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+    .num.on { color: var(--accent); font-weight: 600; }
+    .num small { color: var(--faint); margin-left: 4px; }
+    .empty { color: var(--muted); padding: 28px 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <div id="summary"></div>
+    <div id="status">connecting...</div>
+  </header>
+  <div id="cards">
+    <section class="card convert">
+      <div class="title">Convert to mono</div>
+      <div class="row"><span class="lbl">Mono from</span><span class="switch" id="fold-modes"></span></div>
+      <button id="to-mono" class="primary" disabled>Set all stereo tracks to mono</button>
+    </section>
+    <section class="card back">
+      <div class="title">Back to stereo</div>
+      <div class="note">Puts every track back exactly as it was.</div>
+      <button id="to-stereo" class="restore" disabled>Restore all</button>
+    </section>
+  </div>
+  <div id="info"><span id="sololine"><span>SOLO</span><span class="switch" id="solo-modes"></span></span></div>
+  <div id="notice" hidden></div>
+  <main>
+    <div class="grid head" id="cols" hidden><span>Track</span><span>Solo</span><span>This track: mono from</span></div>
+    <div id="tracks"></div>
+  </main>
+  <script src="vendor/luna.global.js"></script>
+  <script src="logic.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
